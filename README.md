@@ -1,11 +1,9 @@
 # XMRig
 
-[![Github All Releases](https://img.shields.io/github/downloads/xmrig/xmrig/total.svg)](https://github.com/xmrig/xmrig/releases)
-[![GitHub release](https://img.shields.io/github/release/xmrig/xmrig/all.svg)](https://github.com/xmrig/xmrig/releases)
-[![GitHub Release Date](https://img.shields.io/github/release-date/xmrig/xmrig.svg)](https://github.com/xmrig/xmrig/releases)
+
 [![GitHub license](https://img.shields.io/github/license/xmrig/xmrig.svg)](https://github.com/xmrig/xmrig/blob/master/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/xmrig/xmrig.svg)](https://github.com/xmrig/xmrig/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/xmrig/xmrig.svg)](https://github.com/xmrig/xmrig/network)
+
+## 默认无分成、无抽水、 0捐献 XMRig 矿机 (Default donation 0%  XMRig miner)
 
 XMRig is a high performance, open source, cross platform RandomX, KawPow, CryptoNight and AstroBWT unified CPU/GPU miner. Official binaries are available for Windows, Linux, macOS and FreeBSD.
 
@@ -15,7 +13,6 @@ XMRig is a high performance, open source, cross platform RandomX, KawPow, Crypto
 - **CUDA** for NVIDIA GPUs via external [CUDA plugin](https://github.com/xmrig/xmrig-cuda).
 
 ## Download
-* **[Binary releases](https://github.com/xmrig/xmrig/releases)**
 * **[Build from source](https://xmrig.com/docs/miner/build)**
 
 ## Usage
@@ -25,7 +22,7 @@ The preferred way to configure the miner is the [JSON config file](src/config.js
 * **[Workers](http://workers.xmrig.info)** helps manage your miners via HTTP API.
 
 ## Donations
-* Default donation 1% (1 minute in 100 minutes) can be increased via option `donate-level` or disabled in source code.
+* Default donation 0%  can be increased via option `donate-level` or disabled in source code.
 * XMR: `48edfHu7V9Z84YzzMa6fUueoELZ9ZRXq9VetWzYGzKt52XU5xvqgzYnDK9URnRoJMk1j8nLwEVsaSWJ4fhdUyZijBGUicoD`
 
 ## Developers
