@@ -5,8 +5,8 @@
  * Copyright 2014-2016 Wolf9466    <https://github.com/OhGodAPet>
  * Copyright 2016      Jay D Dee   <jayddee246@gmail.com>
  * Copyright 2017-2018 XMR-Stak    <https://github.com/fireice-uk>, <https://github.com/psychocrypt>
- * Copyright 2018-2020 SChernykh   <https://github.com/SChernykh>
- * Copyright 2016-2020 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright 2018-2021 SChernykh   <https://github.com/SChernykh>
+ * Copyright 2016-2021 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -23,9 +23,9 @@
  */
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstring>
 #include <uv.h>
-#include <cinttypes>
 
 
 #include "core/config/Config.h"
@@ -53,23 +53,21 @@
 
 namespace xmrig {
 
-static const char *kCPU     = "cpu";
-
-#ifdef XMRIG_ALGO_RANDOMX
-static const char *kRandomX = "randomx";
-#endif
 
 #ifdef XMRIG_FEATURE_OPENCL
-static const char *kOcl     = "opencl";
+const char *Config::kOcl                = "opencl";
 #endif
 
 #ifdef XMRIG_FEATURE_CUDA
-static const char *kCuda    = "cuda";
+const char *Config::kCuda               = "cuda";
 #endif
 
-
 #if defined(XMRIG_FEATURE_NVML) || defined (XMRIG_FEATURE_ADL)
-static const char *kHealthPrintTime = "health-print-time";
+const char *Config::kHealthPrintTime    = "health-print-time";
+#endif
+
+#ifdef XMRIG_FEATURE_DMI
+const char *Config::kDMI                = "dmi";
 #endif
 
 
@@ -92,6 +90,10 @@ public:
 
 #   if defined(XMRIG_FEATURE_NVML) || defined (XMRIG_FEATURE_ADL)
     uint32_t healthPrintTime = 60;
+#   endif
+
+#   ifdef XMRIG_FEATURE_DMI
+    bool dmi = true;
 #   endif
 };
 
@@ -148,6 +150,14 @@ uint32_t xmrig::Config::healthPrintTime() const
 #endif
 
 
+#ifdef XMRIG_FEATURE_DMI
+bool xmrig::Config::isDMI() const
+{
+    return d_ptr->dmi;
+}
+#endif
+
+
 bool xmrig::Config::isShouldSave() const
 {
     if (!isAutoSave()) {
@@ -176,10 +186,10 @@ bool xmrig::Config::read(const IJsonReader &reader, const char *fileName)
         return false;
     }
 
-    d_ptr->cpu.read(reader.getValue(kCPU));
+    d_ptr->cpu.read(reader.getValue(CpuConfig::kField));
 
 #   ifdef XMRIG_ALGO_RANDOMX
-    if (!d_ptr->rx.read(reader.getValue(kRandomX))) {
+    if (!d_ptr->rx.read(reader.getValue(RxConfig::kField))) {
         m_upgrade = true;
     }
 #   endif
@@ -194,6 +204,10 @@ bool xmrig::Config::read(const IJsonReader &reader, const char *fileName)
 
 #   if defined(XMRIG_FEATURE_NVML) || defined (XMRIG_FEATURE_ADL)
     d_ptr->healthPrintTime = reader.getUint(kHealthPrintTime, d_ptr->healthPrintTime);
+#   endif
+
+#   ifdef XMRIG_FEATURE_DMI
+    d_ptr->dmi = reader.getBool(kDMI, d_ptr->dmi);
 #   endif
 
     return true;
@@ -220,10 +234,10 @@ void xmrig::Config::getJSON(rapidjson::Document &doc) const
     doc.AddMember(StringRef(kTitle),                    title().toJSON(), allocator);
 
 #   ifdef XMRIG_ALGO_RANDOMX
-    doc.AddMember(StringRef(kRandomX),                  rx().toJSON(doc), allocator);
+    doc.AddMember(StringRef(RxConfig::kField),          rx().toJSON(doc), allocator);
 #   endif
 
-    doc.AddMember(StringRef(kCPU),                      cpu().toJSON(doc), allocator);
+    doc.AddMember(StringRef(CpuConfig::kField),         cpu().toJSON(doc), allocator);
 
 #   ifdef XMRIG_FEATURE_OPENCL
     doc.AddMember(StringRef(kOcl),                      cl().toJSON(doc), allocator);
@@ -233,16 +247,19 @@ void xmrig::Config::getJSON(rapidjson::Document &doc) const
     doc.AddMember(StringRef(kCuda),                     cuda().toJSON(doc), allocator);
 #   endif
 
-    doc.AddMember(StringRef(Pools::kDonateLevel),       m_pools.donateLevel(), allocator);
-    doc.AddMember(StringRef(Pools::kDonateOverProxy),   m_pools.proxyDonate(), allocator);
     doc.AddMember(StringRef(kLogFile),                  m_logFile.toJSON(), allocator);
-    doc.AddMember(StringRef(Pools::kPools),             m_pools.toJSON(doc), allocator);
+
+    m_pools.toJSON(doc, doc);
+
     doc.AddMember(StringRef(kPrintTime),                printTime(), allocator);
 #   if defined(XMRIG_FEATURE_NVML) || defined (XMRIG_FEATURE_ADL)
     doc.AddMember(StringRef(kHealthPrintTime),          healthPrintTime(), allocator);
 #   endif
-    doc.AddMember(StringRef(Pools::kRetries),           m_pools.retries(), allocator);
-    doc.AddMember(StringRef(Pools::kRetryPause),        m_pools.retryPause(), allocator);
+
+#   ifdef XMRIG_FEATURE_DMI
+    doc.AddMember(StringRef(kDMI),                      isDMI(), allocator);
+#   endif
+
     doc.AddMember(StringRef(kSyslog),                   isSyslog(), allocator);
 
 #   ifdef XMRIG_FEATURE_TLS

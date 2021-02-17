@@ -1,14 +1,7 @@
 /* XMRig
- * Copyright 2010      Jeff Garzik <jgarzik@pobox.com>
- * Copyright 2012-2014 pooler      <pooler@litecoinpool.org>
- * Copyright 2014      Lucas Jones <https://github.com/lucasjones>
- * Copyright 2014-2016 Wolf9466    <https://github.com/OhGodAPet>
- * Copyright 2016      Jay D Dee   <jayddee246@gmail.com>
- * Copyright 2017-2019 XMR-Stak    <https://github.com/fireice-uk>, <https://github.com/psychocrypt>
- * Copyright 2018      Lee Clagett <https://github.com/vtnerd>
- * Copyright 2018-2019 tevador     <tevador@gmail.com>
- * Copyright 2018-2020 SChernykh   <https://github.com/SChernykh>
- * Copyright 2016-2020 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright (c) 2018-2019 tevador     <tevador@gmail.com>
+ * Copyright (c) 2018-2021 SChernykh   <https://github.com/SChernykh>
+ * Copyright (c) 2016-2021 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -26,14 +19,18 @@
 
 
 #include "crypto/rx/Rx.h"
-#include "backend/common/Tags.h"
 #include "backend/cpu/CpuConfig.h"
 #include "backend/cpu/CpuThreads.h"
-#include "base/io/log/Log.h"
 #include "crypto/rx/RxConfig.h"
 #include "crypto/rx/RxQueue.h"
 #include "crypto/randomx/randomx.h"
-#include "crypto/randomx/soft_aes.h"
+#include "crypto/randomx/aes_hash.hpp"
+
+
+#ifdef XMRIG_FEATURE_MSR
+#   include "crypto/rx/RxFix.h"
+#   include "crypto/rx/RxMsr.h"
+#endif
 
 
 namespace xmrig {
@@ -43,7 +40,6 @@ class RxPrivate;
 
 
 static bool osInitialized   = false;
-static bool msrInitialized  = false;
 static RxPrivate *d_ptr     = nullptr;
 
 
@@ -73,9 +69,9 @@ xmrig::RxDataset *xmrig::Rx::dataset(const Job &job, uint32_t nodeId)
 
 void xmrig::Rx::destroy()
 {
-    if (osInitialized) {
-        msrDestroy();
-    }
+#   ifdef XMRIG_FEATURE_MSR
+    RxMsr::destroy();
+#   endif
 
     delete d_ptr;
 
@@ -92,32 +88,48 @@ void xmrig::Rx::init(IRxListener *listener)
 template<typename T>
 bool xmrig::Rx::init(const T &seed, const RxConfig &config, const CpuConfig &cpu)
 {
-    if (seed.algorithm().family() != Algorithm::RANDOM_X) {
-        if (msrInitialized) {
-            msrDestroy();
-            msrInitialized = false;
-        }
+    const Algorithm::Family f = seed.algorithm().family();
+    if ((f != Algorithm::RANDOM_X)
+#       ifdef XMRIG_ALGO_CN_HEAVY
+        && (f != Algorithm::CN_HEAVY)
+#       endif
+        ) {
+#       ifdef XMRIG_FEATURE_MSR
+        RxMsr::destroy();
+#       endif
 
         return true;
     }
 
+#   ifdef XMRIG_FEATURE_MSR
+    if (!RxMsr::isInitialized()) {
+        RxMsr::init(config, cpu.threads().get(seed.algorithm()).data());
+    }
+#   endif
+
+#   ifdef XMRIG_ALGO_CN_HEAVY
+    if (f == Algorithm::CN_HEAVY) {
+        return true;
+    }
+#   endif
+
     randomx_set_scratchpad_prefetch_mode(config.scratchpadPrefetchMode());
+    randomx_set_huge_pages_jit(cpu.isHugePagesJit());
+    randomx_set_optimized_dataset_init(config.initDatasetAVX2());
+
+    if (!osInitialized) {
+#       ifdef XMRIG_FIX_RYZEN
+        RxFix::setupMainLoopExceptionFrame();
+#       endif
+
+        if (!cpu.isHwAES()) {
+            SelectSoftAESImpl(cpu.threads().get(seed.algorithm()).count());
+        }
+        osInitialized = true;
+    }
 
     if (isReady(seed)) {
         return true;
-    }
-
-    if (!msrInitialized) {
-        msrInit(config, cpu.threads().get(seed.algorithm()).data());
-        msrInitialized = true;
-    }
-
-    if (!osInitialized) {
-        setupMainLoopExceptionFrame();
-        if (!cpu.isHwAES()) {
-            SelectSoftAESImpl();
-        }
-        osInitialized = true;
     }
 
     d_ptr->queue.enqueue(seed, config.nodeset(), config.threads(cpu.limit()), cpu.isHugePages(), config.isOneGbPages(), config.mode(), cpu.priority());
@@ -133,21 +145,10 @@ bool xmrig::Rx::isReady(const T &seed)
 }
 
 
-#ifndef XMRIG_FEATURE_MSR
-void xmrig::Rx::msrInit(const RxConfig &, const std::vector<CpuThread> &)
+#ifdef XMRIG_FEATURE_MSR
+bool xmrig::Rx::isMSR()
 {
-}
-
-
-void xmrig::Rx::msrDestroy()
-{
-}
-#endif
-
-
-#ifndef XMRIG_FIX_RYZEN
-void xmrig::Rx::setupMainLoopExceptionFrame()
-{
+    return RxMsr::isEnabled();
 }
 #endif
 

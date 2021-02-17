@@ -1,6 +1,6 @@
 /* XMRig
- * Copyright 2018-2020 SChernykh   <https://github.com/SChernykh>
- * Copyright 2016-2020 XMRig       <support@xmrig.com>
+ * Copyright (c) 2018-2021 SChernykh   <https://github.com/SChernykh>
+ * Copyright (c) 2016-2021 XMRig       <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include <array>
 #include <cstring>
+#include <fstream>
 #include <thread>
 
 
@@ -35,18 +36,25 @@
 #include "3rdparty/rapidjson/document.h"
 
 
-#ifdef XMRIG_OS_UNIX
+#if defined(XMRIG_OS_UNIX)
 namespace xmrig {
 
 extern String cpu_name_arm();
 
 } // namespace xmrig
+#elif defined(XMRIG_OS_MACOS)
+#   include <sys/sysctl.h>
 #endif
 
 
 xmrig::BasicCpuInfo::BasicCpuInfo() :
     m_threads(std::thread::hardware_concurrency())
 {
+    m_units.resize(m_threads);
+    for (int32_t i = 0; i < static_cast<int32_t>(m_threads); ++i) {
+        m_units[i] = i;
+    }
+
 #   ifdef XMRIG_ARMv8
     memcpy(m_brand, "ARMv8", 5);
 #   else
@@ -61,11 +69,16 @@ xmrig::BasicCpuInfo::BasicCpuInfo() :
 #   endif
 #   endif
 
-#   ifdef XMRIG_OS_UNIX
+#   if defined(XMRIG_OS_UNIX)
     auto name = cpu_name_arm();
     if (!name.isNull()) {
         strncpy(m_brand, name, sizeof(m_brand) - 1);
     }
+
+    m_flags.set(FLAG_PDPE1GB, std::ifstream("/sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages").good());
+#   elif defined(XMRIG_OS_MACOS)
+    size_t buflen = sizeof(m_brand);
+    sysctlbyname("machdep.cpu.brand_string", &m_brand, &buflen, nullptr, 0);
 #   endif
 }
 
@@ -92,7 +105,8 @@ rapidjson::Value xmrig::BasicCpuInfo::toJSON(rapidjson::Document &doc) const
     out.AddMember("brand",      StringRef(brand()), allocator);
     out.AddMember("aes",        hasAES(), allocator);
     out.AddMember("avx2",       false, allocator);
-    out.AddMember("x64",        isX64(), allocator);
+    out.AddMember("x64",        is64bit(), allocator); // DEPRECATED will be removed in the next major release.
+    out.AddMember("64_bit",     is64bit(), allocator);
     out.AddMember("l2",         static_cast<uint64_t>(L2()), allocator);
     out.AddMember("l3",         static_cast<uint64_t>(L3()), allocator);
     out.AddMember("cores",      static_cast<uint64_t>(cores()), allocator);
@@ -102,6 +116,12 @@ rapidjson::Value xmrig::BasicCpuInfo::toJSON(rapidjson::Document &doc) const
     out.AddMember("backend",    StringRef(backend()), allocator);
     out.AddMember("msr",        "none", allocator);
     out.AddMember("assembly",   "none", allocator);
+
+#   ifdef XMRIG_ARMv8
+    out.AddMember("arch", "aarch64", allocator);
+#   else
+    out.AddMember("arch", "aarch32", allocator);
+#   endif
 
     Value flags(kArrayType);
 
