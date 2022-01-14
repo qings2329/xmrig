@@ -1,3 +1,107 @@
+# v6.16.2
+- [#2751](https://github.com/xmrig/xmrig/pull/2751) Fixed crash on CPUs supporting VAES and running GCC-compiled xmrig.
+- [#2761](https://github.com/xmrig/xmrig/pull/2761) Fixed broken auto-tuning in GCC Windows build.
+- [#2771](https://github.com/xmrig/xmrig/issues/2771) Fixed environment variables support for GhostRider and KawPow. 
+- [#2769](https://github.com/xmrig/xmrig/pull/2769) Performance fixes:
+  - Fixed several performance bottlenecks introduced in v6.16.1.
+  - Fixed overall GCC-compiled build performance, it's the same speed as MSVC build now.
+  - **Linux builds are up to 10% faster now compared to v6.16.0 GCC build.**
+  - **Windows builds are up to 5% faster now compared to v6.16.0 MSVC build.**
+
+# v6.16.1
+- [#2729](https://github.com/xmrig/xmrig/pull/2729) GhostRider fixes:
+  - Added average hashrate display.
+  - Fixed the number of threads shown at startup.
+  - Fixed `--threads` or `-t` command line option (but `--cpu-max-threads-hint` is recommended to use).
+- [#2738](https://github.com/xmrig/xmrig/pull/2738) GhostRider fixes:
+  - Fixed "difficulty is not a number" error when diff is high on some pools.
+  - Fixed GhostRider compilation when `WITH_KAWPOW=OFF`.
+- [#2740](https://github.com/xmrig/xmrig/pull/2740) Added VAES support for Cryptonight variants **+4% speedup on Zen3**.
+  - VAES instructions are available on Intel Ice Lake/AMD Zen3 and newer CPUs.
+  - +4% speedup on Ryzen 5 5600X.
+
+# v6.16.0
+- [#2712](https://github.com/xmrig/xmrig/pull/2712) **GhostRider algorithm (Raptoreum) support**: read the [RELEASE NOTES](src/crypto/ghostrider/README.md) for quick start guide and performance comparisons.
+- [#2682](https://github.com/xmrig/xmrig/pull/2682) Fixed: use cn-heavy optimization only for Vermeer CPUs.
+- [#2684](https://github.com/xmrig/xmrig/pull/2684) MSR mod: fix for error 183.
+
+# v6.15.3
+- [#2614](https://github.com/xmrig/xmrig/pull/2614) OpenCL fixes for non-AMD platforms.
+- [#2623](https://github.com/xmrig/xmrig/pull/2623) Fixed compiling without kawpow.
+- [#2636](https://github.com/xmrig/xmrig/pull/2636) [#2639](https://github.com/xmrig/xmrig/pull/2639) AstroBWT speedup (up to +35%).
+- [#2646](https://github.com/xmrig/xmrig/pull/2646) Fixed MSVC compilation error.
+
+# v6.15.2
+- [#2606](https://github.com/xmrig/xmrig/pull/2606) Fixed: AstroBWT auto-config ignored `max-threads-hint`.
+- Fixed possible crash on Windows (regression in v6.15.1).
+
+# v6.15.1
+- [#2586](https://github.com/xmrig/xmrig/pull/2586) Fixed Windows 7 compatibility.
+- [#2594](https://github.com/xmrig/xmrig/pull/2594) Added Windows taskbar icon colors.
+
+# v6.15.0
+- [#2548](https://github.com/xmrig/xmrig/pull/2548) Added automatic coin detection for daemon mining.
+- [#2563](https://github.com/xmrig/xmrig/pull/2563) Added new algorithm RandomX Graft (`rx/graft`).
+- [#2565](https://github.com/xmrig/xmrig/pull/2565) AstroBWT: added AVX2 Salsa20 implementation.
+- Added support for new CUDA plugin API (previous API still supported).
+
+# v6.14.1
+- [#2532](https://github.com/xmrig/xmrig/pull/2532) Refactoring: stable (persistent) algorithms IDs.
+- [#2537](https://github.com/xmrig/xmrig/pull/2537) Fixed Termux build.
+
+# v6.14.0
+- [#2484](https://github.com/xmrig/xmrig/pull/2484) Added ZeroMQ support for solo mining.
+- [#2476](https://github.com/xmrig/xmrig/issues/2476) Fixed crash in DMI memory reader.
+- [#2492](https://github.com/xmrig/xmrig/issues/2492) Added missing `--huge-pages-jit` command line option.
+- [#2512](https://github.com/xmrig/xmrig/pull/2512) Added show the number of transactions in pool job.
+
+# v6.13.1
+- [#2468](https://github.com/xmrig/xmrig/pull/2468) Fixed regression in previous version: don't send miner signature during regular mining.
+
+# v6.13.0
+- [#2445](https://github.com/xmrig/xmrig/pull/2445) Added support for solo mining with miner signatures for the upcoming Wownero fork.
+
+# v6.12.2
+- [#2280](https://github.com/xmrig/xmrig/issues/2280) GPU backends are now disabled in benchmark mode.
+- [#2322](https://github.com/xmrig/xmrig/pull/2322) Improved MSR compatibility with recent Linux kernels and updated `randomx_boost.sh`.
+- [#2340](https://github.com/xmrig/xmrig/pull/2340) Fixed AES detection on FreeBSD on ARM.
+- [#2341](https://github.com/xmrig/xmrig/pull/2341) `sse2neon` updated to the latest version.
+- [#2351](https://github.com/xmrig/xmrig/issues/2351) Fixed help output for `--cpu-priority` and `--cpu-affinity` option.
+- [#2375](https://github.com/xmrig/xmrig/pull/2375) Fixed macOS CUDA backend default loader name.
+- [#2378](https://github.com/xmrig/xmrig/pull/2378) Fixed broken light mode mining on x86.
+- [#2379](https://github.com/xmrig/xmrig/pull/2379) Fixed CL code for KawPow where it assumes everything is AMD.
+- [#2386](https://github.com/xmrig/xmrig/pull/2386) RandomX: enabled `IMUL_RCP` optimization for light mode mining.
+- [#2393](https://github.com/xmrig/xmrig/pull/2393) RandomX: added BMI2 version for scratchpad prefetch.
+- [#2395](https://github.com/xmrig/xmrig/pull/2395) RandomX: rewrote dataset read code.
+- [#2398](https://github.com/xmrig/xmrig/pull/2398) RandomX: optimized ARMv8 dataset read.
+- Added `argon2/ninja` alias for `argon2/wrkz` algorithm.
+
+# v6.12.1
+- [#2296](https://github.com/xmrig/xmrig/pull/2296) Fixed Zen3 assembly code for `cn/upx2` algorithm.
+
+# v6.12.0
+- [#2276](https://github.com/xmrig/xmrig/pull/2276) Added support for Uplexa (`cn/upx2` algorithm).
+- [#2261](https://github.com/xmrig/xmrig/pull/2261) Show total hashrate if compiled without OpenCL.
+- [#2289](https://github.com/xmrig/xmrig/pull/2289) RandomX: optimized `IMUL_RCP` instruction.
+- Added support for `--user` command line option for online benchmark.
+
+# v6.11.2
+- [#2207](https://github.com/xmrig/xmrig/issues/2207) Fixed regression in HTTP parser and llhttp updated to v5.1.0.
+
+# v6.11.1
+- [#2239](https://github.com/xmrig/xmrig/pull/2239) Fixed broken `coin` setting functionality.
+
+# v6.11.0
+- [#2196](https://github.com/xmrig/xmrig/pull/2196) Improved DNS subsystem and added new DNS specific options.
+- [#2172](https://github.com/xmrig/xmrig/pull/2172) Fixed build on Alpine 3.13.
+- [#2177](https://github.com/xmrig/xmrig/pull/2177) Fixed ARM specific compilation error with GCC 10.2.
+- [#2214](https://github.com/xmrig/xmrig/pull/2214) [#2216](https://github.com/xmrig/xmrig/pull/2216) [#2235](https://github.com/xmrig/xmrig/pull/2235) Optimized `cn-heavy` algorithm.
+- [#2217](https://github.com/xmrig/xmrig/pull/2217) Fixed mining job creation sequence.
+- [#2225](https://github.com/xmrig/xmrig/pull/2225) Fixed build without OpenCL support on some systems.
+- [#2229](https://github.com/xmrig/xmrig/pull/2229) Don't use RandomX JIT if `WITH_ASM=OFF`.
+- [#2228](https://github.com/xmrig/xmrig/pull/2228) Removed useless code for cryptonight algorithms.
+- [#2234](https://github.com/xmrig/xmrig/pull/2234) Fixed build error on gcc 4.8.
+
 # v6.10.0
 - [#2122](https://github.com/xmrig/xmrig/pull/2122) Fixed pause logic when both pause on battery and user activity are enabled.
 - [#2123](https://github.com/xmrig/xmrig/issues/2123) Fixed compatibility with gcc 4.8.

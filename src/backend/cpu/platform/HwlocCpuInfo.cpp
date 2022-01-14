@@ -16,7 +16,6 @@
  *   along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifdef XMRIG_HWLOC_DEBUG
 #   include <uv.h>
 #endif
@@ -217,12 +216,6 @@ bool xmrig::HwlocCpuInfo::membind(hwloc_const_bitmap_t nodeset)
 
 xmrig::CpuThreads xmrig::HwlocCpuInfo::threads(const Algorithm &algorithm, uint32_t limit) const
 {
-#   ifdef XMRIG_ALGO_ASTROBWT
-    if (algorithm == Algorithm::ASTROBWT_DERO) {
-        return allThreads(algorithm, limit);
-    }
-#   endif
-
 #   ifndef XMRIG_ARM
     if (L2() == 0 && L3() == 0) {
         return BasicCpuInfo::threads(algorithm, limit);
@@ -259,7 +252,7 @@ xmrig::CpuThreads xmrig::HwlocCpuInfo::threads(const Algorithm &algorithm, uint3
     }
 
     if (threads.isEmpty()) {
-        LOG_WARN("hwloc auto configuration for algorithm \"%s\" failed.", algorithm.shortName());
+        LOG_WARN("hwloc auto configuration for algorithm \"%s\" failed.", algorithm.name());
 
         return BasicCpuInfo::threads(algorithm, limit);
     }
@@ -276,8 +269,10 @@ xmrig::CpuThreads xmrig::HwlocCpuInfo::allThreads(const Algorithm &algorithm, ui
     CpuThreads threads;
     threads.reserve(m_threads);
 
+    const uint32_t intensity = (algorithm.family() == Algorithm::GHOSTRIDER) ? 8 : 0;
+
     for (const int32_t pu : m_units) {
-        threads.add(pu, 0);
+        threads.add(pu, intensity);
     }
 
     if (threads.isEmpty()) {
@@ -303,13 +298,32 @@ void xmrig::HwlocCpuInfo::processTopLevelCache(hwloc_obj_t cache, const Algorith
     cores.reserve(m_cores);
     findByType(cache, HWLOC_OBJ_CORE, [&cores](hwloc_obj_t found) { cores.emplace_back(found); });
 
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    if ((algorithm == Algorithm::GHOSTRIDER_RTM) && (PUs > cores.size()) && (PUs < cores.size() * 2)) {
+        // Don't use E-cores on Alder Lake
+        cores.erase(std::remove_if(cores.begin(), cores.end(), [](hwloc_obj_t c) { return hwloc_bitmap_weight(c->cpuset) == 1; }), cores.end());
+
+        // This shouldn't happen, but check it anyway
+        if (cores.empty()) {
+            findByType(cache, HWLOC_OBJ_CORE, [&cores](hwloc_obj_t found) { cores.emplace_back(found); });
+        }
+    }
+#   endif
+
     size_t L3               = cache->attr->cache.size;
     const bool L3_exclusive = isCacheExclusive(cache);
     size_t L2               = 0;
     int L2_associativity    = 0;
     size_t extra            = 0;
-    const size_t scratchpad = algorithm.l3();
+    size_t scratchpad       = algorithm.l3();
     uint32_t intensity      = algorithm.maxIntensity() == 1 ? 0 : 1;
+
+#   ifdef XMRIG_ALGO_ASTROBWT
+    if (algorithm == Algorithm::ASTROBWT_DERO) {
+        // Use fake low value to force usage of all available cores for AstroBWT (taking 'limit' into account)
+        scratchpad = 16 * 1024;
+    }
+#   endif
 
     if (cache->attr->cache.depth == 3) {
         for (size_t i = 0; i < cache->arity; ++i) {
@@ -336,11 +350,10 @@ void xmrig::HwlocCpuInfo::processTopLevelCache(hwloc_obj_t cache, const Algorith
 
     size_t cacheHashes = ((L3 + extra) + (scratchpad / 2)) / scratchpad;
 
-#   ifdef XMRIG_ALGO_CN_PICO
-    if (intensity && algorithm == Algorithm::CN_PICO_0 && (cacheHashes / PUs) >= 2) {
+    const auto family = algorithm.family();
+    if (intensity && ((family == Algorithm::CN_PICO) || (family == Algorithm::CN_FEMTO)) && (cacheHashes / PUs) >= 2) {
         intensity = 2;
     }
-#   endif
 
 #   ifdef XMRIG_ALGO_RANDOMX
     if (extra == 0 && algorithm.l2() > 0) {
@@ -351,6 +364,15 @@ void xmrig::HwlocCpuInfo::processTopLevelCache(hwloc_obj_t cache, const Algorith
     if (limit > 0) {
         cacheHashes = std::min(cacheHashes, limit);
     }
+
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    if (algorithm == Algorithm::GHOSTRIDER_RTM) {
+        // GhostRider implementation runs 8 hashes at a time
+        intensity = 8;
+        // Always 1 thread per core (it uses additional helper thread when possible)
+        cacheHashes = std::min(cacheHashes, cores.size());
+    }
+#   endif
 
     if (cacheHashes >= PUs) {
         for (hwloc_obj_t core : cores) {

@@ -82,6 +82,12 @@ public:
         HugePageSizeKey      = 1050,
         PauseOnActiveKey     = 1051,
         SubmitToOriginKey    = 1052,
+        DnsIPv6Key           = 1053,
+        DnsTtlKey            = 1054,
+        SpendSecretKey       = 1055,
+        DaemonZMQPortKey     = 1056,
+        HugePagesJitKey      = 1057,
+        RotationKey          = 1058,
 
         // xmrig common
         CPUPriorityKey       = 1021,

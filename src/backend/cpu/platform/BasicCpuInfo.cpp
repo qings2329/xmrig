@@ -30,6 +30,12 @@
 #endif
 
 
+#include "crypto/cn/CryptoNight_monero.h"
+#ifdef XMRIG_VAES
+#   include "crypto/cn/CryptoNight_x86_vaes.h"
+#endif
+
+
 #include "backend/cpu/platform/BasicCpuInfo.h"
 #include "3rdparty/rapidjson/document.h"
 #include "crypto/common/Assembly.h"
@@ -52,8 +58,8 @@
 namespace xmrig {
 
 
-constexpr size_t kCpuFlagsSize                                  = 14;
-static const std::array<const char *, kCpuFlagsSize> flagNames  = { "aes", "avx", "avx2", "avx512f", "bmi2", "osxsave", "pdpe1gb", "sse2", "ssse3", "sse4.1", "xop", "popcnt", "cat_l3", "vm" };
+constexpr size_t kCpuFlagsSize                                  = 15;
+static const std::array<const char *, kCpuFlagsSize> flagNames  = { "aes", "vaes", "avx", "avx2", "avx512f", "bmi2", "osxsave", "pdpe1gb", "sse2", "ssse3", "sse4.1", "xop", "popcnt", "cat_l3", "vm" };
 static_assert(kCpuFlagsSize == ICpuInfo::FLAG_MAX, "kCpuFlagsSize and FLAG_MAX mismatch");
 
 
@@ -140,6 +146,7 @@ static inline bool has_osxsave()    { return has_feature(PROCESSOR_INFO,        
 static inline bool has_aes_ni()     { return has_feature(PROCESSOR_INFO,        ECX_Reg, 1 << 25); }
 static inline bool has_avx()        { return has_feature(PROCESSOR_INFO,        ECX_Reg, 1 << 28) && has_osxsave() && has_xcr_avx(); }
 static inline bool has_avx2()       { return has_feature(EXTENDED_FEATURES,     EBX_Reg, 1 << 5) && has_osxsave() && has_xcr_avx(); }
+static inline bool has_vaes()       { return has_feature(EXTENDED_FEATURES,     ECX_Reg, 1 << 9) && has_osxsave() && has_xcr_avx(); }
 static inline bool has_avx512f()    { return has_feature(EXTENDED_FEATURES,     EBX_Reg, 1 << 16) && has_osxsave() && has_xcr_avx512(); }
 static inline bool has_bmi2()       { return has_feature(EXTENDED_FEATURES,     EBX_Reg, 1 << 8); }
 static inline bool has_pdpe1gb()    { return has_feature(PROCESSOR_EXT_INFO,    EDX_Reg, 1 << 26); }
@@ -178,6 +185,7 @@ xmrig::BasicCpuInfo::BasicCpuInfo() :
     m_flags.set(FLAG_AES,     has_aes_ni());
     m_flags.set(FLAG_AVX,     has_avx());
     m_flags.set(FLAG_AVX2,    has_avx2());
+    m_flags.set(FLAG_VAES,    has_vaes());
     m_flags.set(FLAG_AVX512F, has_avx512f());
     m_flags.set(FLAG_BMI2,    has_bmi2());
     m_flags.set(FLAG_OSXSAVE, has_osxsave());
@@ -196,7 +204,7 @@ xmrig::BasicCpuInfo::BasicCpuInfo() :
     }
 
 #   ifdef XMRIG_FEATURE_ASM
-    if (hasAES()) {
+    if (m_flags.test(FLAG_AES)) {
         char vendor[13] = { 0 };
         int32_t data[4] = { 0 };
 
@@ -292,6 +300,9 @@ xmrig::BasicCpuInfo::BasicCpuInfo() :
         }
     }
 #   endif
+
+    cn_sse41_enabled = has(FLAG_SSE41);
+    cn_vaes_enabled = has(FLAG_VAES);
 }
 
 
@@ -309,26 +320,34 @@ xmrig::CpuThreads xmrig::BasicCpuInfo::threads(const Algorithm &algorithm, uint3
         return 1;
     }
 
+    const auto f = algorithm.family();
+
 #   ifdef XMRIG_ALGO_CN_LITE
-    if (algorithm.family() == Algorithm::CN_LITE) {
+    if (f == Algorithm::CN_LITE) {
         return CpuThreads(count, 1);
     }
 #   endif
 
 #   ifdef XMRIG_ALGO_CN_PICO
-    if (algorithm.family() == Algorithm::CN_PICO) {
+    if (f == Algorithm::CN_PICO) {
+        return CpuThreads(count, 2);
+    }
+#   endif
+
+#   ifdef XMRIG_ALGO_CN_FEMTO
+    if (f == Algorithm::CN_FEMTO) {
         return CpuThreads(count, 2);
     }
 #   endif
 
 #   ifdef XMRIG_ALGO_CN_HEAVY
-    if (algorithm.family() == Algorithm::CN_HEAVY) {
+    if (f == Algorithm::CN_HEAVY) {
         return CpuThreads(std::max<size_t>(count / 4, 1), 1);
     }
 #   endif
 
 #   ifdef XMRIG_ALGO_RANDOMX
-    if (algorithm.family() == Algorithm::RANDOM_X) {
+    if (f == Algorithm::RANDOM_X) {
         if (algorithm == Algorithm::RX_WOW) {
             return count;
         }
@@ -338,18 +357,24 @@ xmrig::CpuThreads xmrig::BasicCpuInfo::threads(const Algorithm &algorithm, uint3
 #   endif
 
 #   ifdef XMRIG_ALGO_ARGON2
-    if (algorithm.family() == Algorithm::ARGON2) {
+    if (f == Algorithm::ARGON2) {
         return count;
     }
 #   endif
 
 #   ifdef XMRIG_ALGO_ASTROBWT
-    if (algorithm.family() == Algorithm::ASTROBWT) {
+    if (f == Algorithm::ASTROBWT) {
         CpuThreads threads;
         for (size_t i = 0; i < count; ++i) {
             threads.add(i, 0);
         }
         return threads;
+    }
+#   endif
+
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    if (f == Algorithm::GHOSTRIDER) {
+        return CpuThreads(std::max<size_t>(count / 2, 1), 8);
     }
 #   endif
 

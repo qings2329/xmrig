@@ -17,7 +17,6 @@
  *   along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include "crypto/rx/Rx.h"
 #include "backend/cpu/CpuConfig.h"
 #include "backend/cpu/CpuThreads.h"
@@ -46,7 +45,7 @@ static RxPrivate *d_ptr     = nullptr;
 class RxPrivate
 {
 public:
-    inline RxPrivate(IRxListener *listener) : queue(listener) {}
+    inline explicit RxPrivate(IRxListener *listener) : queue(listener) {}
 
     RxQueue queue;
 };
@@ -88,10 +87,13 @@ void xmrig::Rx::init(IRxListener *listener)
 template<typename T>
 bool xmrig::Rx::init(const T &seed, const RxConfig &config, const CpuConfig &cpu)
 {
-    const Algorithm::Family f = seed.algorithm().family();
+    const auto f = seed.algorithm().family();
     if ((f != Algorithm::RANDOM_X)
 #       ifdef XMRIG_ALGO_CN_HEAVY
         && (f != Algorithm::CN_HEAVY)
+#       endif
+#       ifdef XMRIG_ALGO_GHOSTRIDER
+        && (f != Algorithm::GHOSTRIDER)
 #       endif
         ) {
 #       ifdef XMRIG_FEATURE_MSR
@@ -109,6 +111,12 @@ bool xmrig::Rx::init(const T &seed, const RxConfig &config, const CpuConfig &cpu
 
 #   ifdef XMRIG_ALGO_CN_HEAVY
     if (f == Algorithm::CN_HEAVY) {
+        return true;
+    }
+#   endif
+
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    if (f == Algorithm::GHOSTRIDER) {
         return true;
     }
 #   endif
