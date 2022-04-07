@@ -23,6 +23,7 @@
 
 #include "backend/cpu/Cpu.h"
 #include "backend/cpu/CpuWorker.h"
+#include "base/tools/Alignment.h"
 #include "base/tools/Chrono.h"
 #include "core/config/Config.h"
 #include "core/Miner.h"
@@ -100,7 +101,7 @@ xmrig::CpuWorker<N>::CpuWorker(size_t id, const CpuLaunchData &data) :
     }
 
 #   ifdef XMRIG_ALGO_GHOSTRIDER
-    m_ghHelper = ghostrider::create_helper_thread(affinity(), data.affinities);
+    m_ghHelper = ghostrider::create_helper_thread(affinity(), data.priority, data.affinities);
 #   endif
 }
 
@@ -134,7 +135,7 @@ void xmrig::CpuWorker<N>::allocateRandomX_VM()
     RxDataset *dataset = Rx::dataset(m_job.currentJob(), node());
 
     while (dataset == nullptr) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
         if (Nonce::sequence(Nonce::CPU) == 0) {
             return;
@@ -223,9 +224,8 @@ bool xmrig::CpuWorker<N>::selfTest()
 #   endif
 
 #   ifdef XMRIG_ALGO_ASTROBWT
-    if (m_algorithm.family() == Algorithm::ASTROBWT) {
-        return verify(Algorithm::ASTROBWT_DERO, astrobwt_dero_test_out);
-    }
+    if (m_algorithm.id() == Algorithm::ASTROBWT_DERO)   return verify(Algorithm::ASTROBWT_DERO,   astrobwt_dero_test_out);
+    if (m_algorithm.id() == Algorithm::ASTROBWT_DERO_2) return verify(Algorithm::ASTROBWT_DERO_2, astrobwt_dero_2_test_out);
 #   endif
 
     return false;
@@ -246,7 +246,7 @@ void xmrig::CpuWorker<N>::start()
     while (Nonce::sequence(Nonce::CPU) > 0) {
         if (Nonce::isPaused()) {
             do {
-                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
             }
             while (Nonce::isPaused() && Nonce::sequence(Nonce::CPU) > 0);
 
@@ -271,7 +271,7 @@ void xmrig::CpuWorker<N>::start()
 
             uint32_t current_job_nonces[N];
             for (size_t i = 0; i < N; ++i) {
-                current_job_nonces[i] = *m_job.nonce(i);
+                current_job_nonces[i] = readUnaligned(m_job.nonce(i));
             }
 
 #           ifdef XMRIG_FEATURE_BENCHMARK
@@ -319,8 +319,15 @@ void xmrig::CpuWorker<N>::start()
 
 #               ifdef XMRIG_ALGO_ASTROBWT
                 case Algorithm::ASTROBWT:
-                    if (!astrobwt::astrobwt_dero(m_job.blob(), job.size(), m_ctx[0]->memory, m_hash, m_astrobwtMaxSize, m_astrobwtAVX2)) {
-                        valid = false;
+                    if (job.algorithm().id() == Algorithm::ASTROBWT_DERO) {
+                        if (!astrobwt::astrobwt_dero(m_job.blob(), job.size(), m_ctx[0]->memory, m_hash, m_astrobwtMaxSize, m_astrobwtAVX2)) {
+                            valid = false;
+                        }
+                    }
+                    else {
+                        if (!astrobwt::astrobwt_dero_v2(m_job.blob(), job.size(), m_ctx[0]->memory, m_hash)) {
+                            valid = false;
+                        }
                     }
                     break;
 #               endif
