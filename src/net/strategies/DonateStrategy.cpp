@@ -1,6 +1,6 @@
 /* XMRig
- * Copyright (c) 2018-2022 SChernykh   <https://github.com/SChernykh>
- * Copyright (c) 2016-2022 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright (c) 2018-2023 SChernykh   <https://github.com/SChernykh>
+ * Copyright (c) 2016-2023 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ static const char *kDonateHost = "donate.v2.xmrig.com";
 static const char *kDonateHostTls = "donate.ssl.xmrig.com";
 #endif
 
-} /* namespace xmrig */
+} // namespace xmrig
 
 
 xmrig::DonateStrategy::DonateStrategy(Controller *controller, IStrategyListener *listener) :
@@ -70,9 +70,9 @@ xmrig::DonateStrategy::DonateStrategy(Controller *controller, IStrategyListener 
 #   endif
 
 #   ifdef XMRIG_FEATURE_TLS
-    m_pools.emplace_back(kDonateHostTls, 443, m_userId, nullptr, nullptr, 0, true, true, false, mode);
+    m_pools.emplace_back(kDonateHostTls, 443, m_userId, nullptr, nullptr, 0, true, true, mode);
 #   endif
-    m_pools.emplace_back(kDonateHost, 3333, m_userId, nullptr, nullptr, 0, true, false, false, mode);
+    m_pools.emplace_back(kDonateHost, 3333, m_userId, nullptr, nullptr, 0, true, false, mode);
 
     if (m_pools.size() > 1) {
         m_strategy = new FailoverStrategy(m_pools, 10, 2, this, true);
@@ -98,6 +98,17 @@ xmrig::DonateStrategy::~DonateStrategy()
 }
 
 
+void xmrig::DonateStrategy::update(IClient *client, const Job &job)
+{
+    setAlgo(job.algorithm());
+    setProxy(client->pool().proxy());
+
+    m_diff   = job.diff();
+    m_height = job.height();
+    m_seed   = job.seed();
+}
+
+
 int64_t xmrig::DonateStrategy::submit(const JobResult &result)
 {
     return m_proxy ? m_proxy->submit(result) : m_strategy->submit(result);
@@ -106,12 +117,6 @@ int64_t xmrig::DonateStrategy::submit(const JobResult &result)
 
 void xmrig::DonateStrategy::connect()
 {
-#   ifdef XMRIG_ALGO_ASTROBWT
-    if (m_algorithm == Algorithm::ASTROBWT_DERO_2) {
-        return;
-    }
-#   endif
-
     m_proxy = createProxy();
     if (m_proxy) {
         m_proxy->connect();
@@ -205,13 +210,13 @@ void xmrig::DonateStrategy::onLogin(IClient *, rapidjson::Document &doc, rapidjs
     params.AddMember("url", m_pools[0].url().toJSON(), allocator);
 #   endif
 
-    setAlgorithms(doc, params);
+    setParams(doc, params);
 }
 
 
 void xmrig::DonateStrategy::onLogin(IStrategy *, IClient *, rapidjson::Document &doc, rapidjson::Value &params)
 {
-    setAlgorithms(doc, params);
+    setParams(doc, params);
 }
 
 
@@ -258,7 +263,7 @@ xmrig::IClient *xmrig::DonateStrategy::createProxy()
     const IClient *client = strategy->client();
     m_tls                 = client->hasExtension(IClient::EXT_TLS);
 
-    Pool pool(client->pool().proxy().isValid() ? client->pool().host() : client->ip(), client->pool().port(), m_userId, client->pool().password(), client->pool().spendSecretKey(), 0, true, client->isTLS(), client->isWSS(), Pool::MODE_POOL);
+    Pool pool(client->pool().proxy().isValid() ? client->pool().host() : client->ip(), client->pool().port(), m_userId, client->pool().password(), client->pool().spendSecretKey(), 0, true, client->isTLS(), Pool::MODE_POOL);
     pool.setAlgo(client->pool().algorithm());
     pool.setProxy(client->pool().proxy());
 
@@ -276,12 +281,20 @@ void xmrig::DonateStrategy::idle(double min, double max)
 }
 
 
-void xmrig::DonateStrategy::setAlgorithms(rapidjson::Document &doc, rapidjson::Value &params)
+void xmrig::DonateStrategy::setJob(IClient *client, const Job &job, const rapidjson::Value &params)
+{
+    if (isActive()) {
+        m_listener->onJob(this, client, job, params);
+    }
+}
+
+
+void xmrig::DonateStrategy::setParams(rapidjson::Document &doc, rapidjson::Value &params)
 {
     using namespace rapidjson;
     auto &allocator = doc.GetAllocator();
+    auto algorithms = m_controller->miner()->algorithms();
 
-    Algorithms algorithms = m_controller->miner()->algorithms();
     const size_t index = static_cast<size_t>(std::distance(algorithms.begin(), std::find(algorithms.begin(), algorithms.end(), m_algorithm)));
     if (index > 0 && index < algorithms.size()) {
         std::swap(algorithms[0], algorithms[index]);
@@ -293,14 +306,12 @@ void xmrig::DonateStrategy::setAlgorithms(rapidjson::Document &doc, rapidjson::V
         algo.PushBack(StringRef(a.name()), allocator);
     }
 
-    params.AddMember("algo", algo, allocator);
-}
+    params.AddMember("algo",    algo, allocator);
+    params.AddMember("diff",    m_diff, allocator);
+    params.AddMember("height",  m_height, allocator);
 
-
-void xmrig::DonateStrategy::setJob(IClient *client, const Job &job, const rapidjson::Value &params)
-{
-    if (isActive()) {
-        m_listener->onJob(this, client, job, params);
+    if (!m_seed.empty()) {
+       params.AddMember("seed_hash", Cvt::toHex(m_seed, doc), allocator);
     }
 }
 

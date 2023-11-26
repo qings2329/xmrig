@@ -1,3 +1,75 @@
+# v6.21.0
+- [#3302](https://github.com/xmrig/xmrig/pull/3302) [#3312](https://github.com/xmrig/xmrig/pull/3312) Enabled keepalive for Windows (>= Vista).
+- [#3320](https://github.com/xmrig/xmrig/pull/3320) Added "built for OS/architecture/bits" to "ABOUT".
+- [#3339](https://github.com/xmrig/xmrig/pull/3339) Added SNI option for TLS connections.
+- [#3342](https://github.com/xmrig/xmrig/pull/3342) Update `cn_main_loop.asm`.
+- [#3346](https://github.com/xmrig/xmrig/pull/3346) ARM64 JIT: don't use `x18` register.
+- [#3348](https://github.com/xmrig/xmrig/pull/3348) Update to latest `sse2neon.h`.
+- [#3356](https://github.com/xmrig/xmrig/pull/3356) Updated pricing record size for **Zephyr** solo mining.
+- [#3358](https://github.com/xmrig/xmrig/pull/3358) **Zephyr** solo mining: handle multiple outputs.
+
+# v6.20.0
+- Added new ARM CPU names.
+- [#2394](https://github.com/xmrig/xmrig/pull/2394) Added new CMake options `ARM_V8` and `ARM_V7`.
+- [#2830](https://github.com/xmrig/xmrig/pull/2830) Added API rebind polling.
+- [#2927](https://github.com/xmrig/xmrig/pull/2927) Fixed compatibility with hwloc 1.11.x.
+- [#3060](https://github.com/xmrig/xmrig/pull/3060) Added x86 to `README.md`.
+- [#3236](https://github.com/xmrig/xmrig/pull/3236) Fixed: receive CUDA loader error on Linux too.
+- [#3290](https://github.com/xmrig/xmrig/pull/3290) Added [Zephyr](https://www.zephyrprotocol.com/) coin support for solo mining.
+
+# v6.19.3
+- [#3245](https://github.com/xmrig/xmrig/issues/3245) Improved algorithm negotiation for donation rounds by sending extra information about current mining job.
+- [#3254](https://github.com/xmrig/xmrig/pull/3254) Tweaked auto-tuning for Intel CPUs.
+- [#3271](https://github.com/xmrig/xmrig/pull/3271) RandomX: optimized program generation.
+- [#3273](https://github.com/xmrig/xmrig/pull/3273) RandomX: fixed undefined behavior.
+- [#3275](https://github.com/xmrig/xmrig/pull/3275) RandomX: fixed `jccErratum` list.
+- [#3280](https://github.com/xmrig/xmrig/pull/3280) Updated example scripts.
+
+# v6.19.2
+- [#3230](https://github.com/xmrig/xmrig/pull/3230) Fixed parsing of `TX_EXTRA_MERGE_MINING_TAG`.
+- [#3232](https://github.com/xmrig/xmrig/pull/3232) Added new `X-Hash-Difficulty` HTTP header.
+- [#3240](https://github.com/xmrig/xmrig/pull/3240) Improved .cmd files when run by shortcuts on another drive.
+- [#3241](https://github.com/xmrig/xmrig/pull/3241) Added view tag calculation (fixes Wownero solo mining issue).
+
+# v6.19.1
+- Resolved deprecated methods warnings with OpenSSL 3.0.
+- [#3213](https://github.com/xmrig/xmrig/pull/3213) Fixed build with 32-bit clang 15.
+- [#3218](https://github.com/xmrig/xmrig/pull/3218) Fixed: `--randomx-wrmsr=-1` worked only on Intel.
+- [#3228](https://github.com/xmrig/xmrig/pull/3228) Fixed build with gcc 13.
+
+# v6.19.0
+- [#3144](https://github.com/xmrig/xmrig/pull/3144) Update to latest `sse2neon.h`.
+- [#3161](https://github.com/xmrig/xmrig/pull/3161) MSVC build: enabled parallel compilation.
+- [#3163](https://github.com/xmrig/xmrig/pull/3163) Improved Zen 3 MSR mod.
+- [#3176](https://github.com/xmrig/xmrig/pull/3176) Update cmake required version to 3.1.
+- [#3182](https://github.com/xmrig/xmrig/pull/3182) DragonflyBSD compilation fixes.
+- [#3196](https://github.com/xmrig/xmrig/pull/3196) Show IP address for failed connections.
+- [#3185](https://github.com/xmrig/xmrig/issues/3185) Fixed macOS DMI reader.
+- [#3198](https://github.com/xmrig/xmrig/pull/3198) Fixed broken RandomX light mode mining.
+- [#3202](https://github.com/xmrig/xmrig/pull/3202) Solo mining: added job timeout (default is 15 seconds).
+
+# v6.18.1
+- [#3129](https://github.com/xmrig/xmrig/pull/3129) Fix: protectRX flushed CPU cache only on MacOS/iOS.
+- [#3126](https://github.com/xmrig/xmrig/pull/3126) Don't reset when pool sends the same job blob.
+- [#3120](https://github.com/xmrig/xmrig/pull/3120) RandomX: optimized `CFROUND` elimination.
+- [#3109](https://github.com/xmrig/xmrig/pull/3109) RandomX: added Blake2 AVX2 version.
+- [#3082](https://github.com/xmrig/xmrig/pull/3082) Fixed GCC 12 warnings.
+- [#3075](https://github.com/xmrig/xmrig/pull/3075) Recognize `armv7ve` as valid ARMv7 target.
+- [#3132](https://github.com/xmrig/xmrig/pull/3132) RandomX: added MSR mod for Zen 4.
+- [#3134](https://github.com/xmrig/xmrig/pull/3134) Added Zen4 to `randomx_boost.sh`.
+
+# v6.18.0
+- [#3067](https://github.com/xmrig/xmrig/pull/3067) Monero v15 network upgrade support and more house keeping.
+  - Removed deprecated AstroBWTv1 and v2.
+  - Fixed debug GhostRider build.
+  - Monero v15 network upgrade support.
+  - Fixed ZMQ debug log.
+  - Improved daemon ZMQ mining stability.
+- [#3054](https://github.com/xmrig/xmrig/pull/3054) Fixes for 32-bit ARM.
+- [#3042](https://github.com/xmrig/xmrig/pull/3042) Fixed being unable to resume from `pause-on-battery`.
+- [#3031](https://github.com/xmrig/xmrig/pull/3031) Fixed `--cpu-priority` not working sometimes.
+- [#3020](https://github.com/xmrig/xmrig/pull/3020) Removed old AstroBWT algorithm.
+
 # v6.17.0
 - [#2954](https://github.com/xmrig/xmrig/pull/2954) **Dero HE fork support (`astrobwt/v2` algorithm).**
   - [#2961](https://github.com/xmrig/xmrig/pull/2961) Dero HE (`astrobwt/v2`) CUDA config generator.
