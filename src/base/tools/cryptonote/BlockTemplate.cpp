@@ -1,8 +1,8 @@
 /* XMRig
  * Copyright (c) 2012-2013 The Cryptonote developers
  * Copyright (c) 2014-2021 The Monero Project
- * Copyright (c) 2018-2021 SChernykh   <https://github.com/SChernykh>
- * Copyright (c) 2016-2021 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright (c) 2018-2023 SChernykh   <https://github.com/SChernykh>
+ * Copyright (c) 2016-2023 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -207,7 +207,11 @@ bool xmrig::BlockTemplate::parse(bool hashes)
     setOffset(MINER_TX_PREFIX_OFFSET, ar.index());
 
     ar(m_txVersion);
-    ar(m_unlockTime);
+
+    if (m_coin != Coin::TOWNFORGE) {
+      ar(m_unlockTime);
+    }
+
     ar(m_numInputs);
 
     // must be 1 input
@@ -237,14 +241,24 @@ bool xmrig::BlockTemplate::parse(bool hashes)
     ar(m_amount);
     ar(m_outputType);
 
-    // output type must be txout_to_key (2) or txout_to_tagged_key (3)
-    if ((m_outputType != 2) && (m_outputType != 3)) {
+    const bool is_fcmp_pp = (m_coin == Coin::MONERO) && (m_version.first >= 17);
+
+    // output type must be txout_to_key (2) or txout_to_tagged_key (3) for versions < 17, and txout_to_carrot_v1 (0) for version FCMP++
+    if (is_fcmp_pp && (m_outputType == 0)) {
+        // all good
+    }
+    else if ((m_outputType != 2) && (m_outputType != 3)) {
         return false;
     }
 
     setOffset(EPH_PUBLIC_KEY_OFFSET, ar.index());
 
     ar(m_ephPublicKey, kKeySize);
+
+    if (is_fcmp_pp) {
+        ar(m_carrotViewTag);
+        ar(m_janusAnchor);
+    }
 
     if (m_coin == Coin::ZEPHYR) {
         if (m_outputType != 2) {
@@ -278,6 +292,10 @@ bool xmrig::BlockTemplate::parse(bool hashes)
     }
     else if (m_outputType == 3) {
         ar(m_viewTag);
+    }
+
+    if (m_coin == Coin::TOWNFORGE) {
+      ar(m_unlockTime);
     }
 
     ar(m_extraSize);
@@ -334,6 +352,11 @@ bool xmrig::BlockTemplate::parse(bool hashes)
     // RCT signatures (empty in miner transaction)
     uint8_t vin_rct_type = 0;
     ar(vin_rct_type);
+
+    // no way I'm parsing a full game update here
+    if (m_coin == Coin::TOWNFORGE && m_height % 720 == 0) {
+      return true;
+    }
 
     // must be RCTTypeNull (0)
     if (vin_rct_type != 0) {

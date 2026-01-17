@@ -1,6 +1,6 @@
 /* XMRig
- * Copyright (c) 2018-2023 SChernykh   <https://github.com/SChernykh>
- * Copyright (c) 2016-2023 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright (c) 2018-2025 SChernykh   <https://github.com/SChernykh>
+ * Copyright (c) 2016-2025 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,16 +20,18 @@
 
 
 #include "base/api/Api.h"
+#include "3rdparty/rapidjson/writer.h"
 #include "base/api/interfaces/IApiListener.h"
 #include "base/api/requests/HttpApiRequest.h"
 #include "base/crypto/keccak.h"
 #include "base/io/Env.h"
 #include "base/io/json/Json.h"
+#include "base/io/log/Log.h"
+#include "base/io/log/Tags.h"
 #include "base/kernel/Base.h"
 #include "base/tools/Chrono.h"
 #include "base/tools/Cvt.h"
 #include "core/config/Config.h"
-#include "core/Controller.h"
 #include "version.h"
 
 
@@ -42,6 +44,12 @@
 
 
 namespace xmrig {
+
+
+static_assert(
+    RAPIDJSON_WRITE_DEFAULT_FLAGS == (rapidjson::kWriteNanAndInfFlag | rapidjson::kWriteNanAndInfNullFlag),
+    "(rapidjson::kWriteNanAndInfFlag | rapidjson::kWriteNanAndInfNullFlag) required"
+    );
 
 
 static rapidjson::Value getResources(rapidjson::Document &doc)
@@ -91,7 +99,11 @@ xmrig::Api::Api(Base *base) :
 xmrig::Api::~Api()
 {
 #   ifdef XMRIG_FEATURE_HTTP
-    delete m_httpd;
+    if (m_httpd) {
+        m_httpd->stop();
+        delete m_httpd;
+        m_httpd = nullptr; // Ensure the pointer is set to nullptr after deletion
+    }
 #   endif
 }
 
@@ -109,8 +121,15 @@ void xmrig::Api::start()
     genWorkerId(m_base->config()->apiWorkerId());
 
 #   ifdef XMRIG_FEATURE_HTTP
-    m_httpd = new Httpd(m_base);
-    m_httpd->start();
+    if (!m_httpd) {
+        m_httpd = new Httpd(m_base);
+        if (!m_httpd->start()) {
+            LOG_ERR("%s " RED_BOLD("HTTP API server failed to start."), Tags::network());
+
+            delete m_httpd; // Properly handle failure to start
+            m_httpd = nullptr;
+        }
+    }
 #   endif
 }
 
@@ -118,7 +137,9 @@ void xmrig::Api::start()
 void xmrig::Api::stop()
 {
 #   ifdef XMRIG_FEATURE_HTTP
-    m_httpd->stop();
+    if (m_httpd) {
+        m_httpd->stop();
+    }
 #   endif
 }
 
@@ -126,13 +147,15 @@ void xmrig::Api::stop()
 void xmrig::Api::tick()
 {
 #   ifdef XMRIG_FEATURE_HTTP
-    if (m_httpd->isBound() || !m_base->config()->http().isEnabled()) {
+    if (!m_httpd || !m_base->config()->http().isEnabled() || m_httpd->isBound()) {
         return;
     }
 
     if (++m_ticks % 10 == 0) {
         m_ticks = 0;
-        m_httpd->start();
+        if (m_httpd) {
+            m_httpd->start();
+        }
     }
 #   endif
 }

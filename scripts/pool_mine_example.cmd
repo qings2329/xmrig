@@ -15,6 +15,6 @@
 :: Choose pools outside of top 5 to help Monero network be more decentralized!
 :: Smaller pools also often have smaller fees/payout limits.
 
-cd %~dp0
-xmrig.exe -o pool.hashvault.pro:3333 -u 423FUAUjPUnSmSekaBUxSmT2t7nuYDS31E5ccwUh5HFiUEsyHKDf5moAJe3CdbFBNQfMwcdeJQmF95K9PZ2QqUQhCmh3amq -p x
+cd /d "%~dp0"
+xmrig.exe -o xmrpool.eu:3333 -u 423FUAUjPUnSmSekaBUxSmT2t7nuYDS31E5ccwUh5HFiUEsyHKDf5moAJe3CdbFBNQfMwcdeJQmF95K9PZ2QqUQhCmh3amq -p x
 pause

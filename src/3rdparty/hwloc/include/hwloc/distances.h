@@ -1,5 +1,5 @@
 /*
- * Copyright © 2010-2022 Inria.  All rights reserved.
+ * Copyright © 2010-2025 Inria.  All rights reserved.
  * See COPYING in top-level directory.
  */
 
@@ -28,18 +28,18 @@ extern "C" {
 
 /** \brief Matrix of distances between a set of objects.
  *
- * This matrix often contains latencies between NUMA nodes
+ * The most common matrix contains latencies between NUMA nodes
  * (as reported in the System Locality Distance Information Table (SLIT)
  * in the ACPI specification), which may or may not be physically accurate.
  * It corresponds to the latency for accessing the memory of one node
  * from a core in another node.
- * The corresponding kind is ::HWLOC_DISTANCES_KIND_FROM_OS | ::HWLOC_DISTANCES_KIND_FROM_USER.
+ * The corresponding kind is ::HWLOC_DISTANCES_KIND_MEANS_LATENCY | ::HWLOC_DISTANCES_KIND_FROM_USER.
  * The name of this distances structure is "NUMALatency".
- * Others distance structures include and "XGMIBandwidth", "XGMIHops",
- * "XeLinkBandwidth" and "NVLinkBandwidth".
  *
  * The matrix may also contain bandwidths between random sets of objects,
  * possibly provided by the user, as specified in the \p kind attribute.
+ * Others common distance structures include and "XGMIBandwidth", "XGMIHops",
+ * "XeLinkBandwidth" and "NVLinkBandwidth".
  *
  * Pointers \p objs and \p values should not be replaced, reallocated, freed, etc.
  * However callers are allowed to modify \p kind as well as the contents
@@ -70,11 +70,10 @@ struct hwloc_distances_s {
  * The \p kind attribute of struct hwloc_distances_s is a OR'ed set
  * of kinds.
  *
- * A kind of format HWLOC_DISTANCES_KIND_FROM_* specifies where the
- * distance information comes from, if known.
- *
- * A kind of format HWLOC_DISTANCES_KIND_MEANS_* specifies whether
- * values are latencies or bandwidths, if applicable.
+ * Each distance matrix may have only one kind among HWLOC_DISTANCES_KIND_FROM_*
+ * specifying where distance information comes from,
+ * and one kind among HWLOC_DISTANCES_KIND_MEANS_* specifying
+ * whether values are latencies or bandwidths.
  */
 enum hwloc_distances_kind_e {
   /** \brief These distances were obtained from the operating system or hardware.
@@ -131,6 +130,8 @@ enum hwloc_distances_kind_e {
  *
  * Each distance matrix returned in the \p distances array should be released
  * by the caller using hwloc_distances_release().
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int
 hwloc_distances_get(hwloc_topology_t topology,
@@ -140,6 +141,8 @@ hwloc_distances_get(hwloc_topology_t topology,
 /** \brief Retrieve distance matrices for object at a specific depth in the topology.
  *
  * Identical to hwloc_distances_get() with the additional \p depth filter.
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int
 hwloc_distances_get_by_depth(hwloc_topology_t topology, int depth,
@@ -149,6 +152,8 @@ hwloc_distances_get_by_depth(hwloc_topology_t topology, int depth,
 /** \brief Retrieve distance matrices for object of a specific type.
  *
  * Identical to hwloc_distances_get() with the additional \p type filter.
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int
 hwloc_distances_get_by_type(hwloc_topology_t topology, hwloc_obj_type_t type,
@@ -162,6 +167,8 @@ hwloc_distances_get_by_type(hwloc_topology_t topology, hwloc_obj_type_t type,
  * The name of the most common structure is "NUMALatency".
  * Others include "XGMIBandwidth", "XGMIHops", "XeLinkBandwidth",
  * and "NVLinkBandwidth".
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int
 hwloc_distances_get_by_name(hwloc_topology_t topology, const char *name,
@@ -171,7 +178,12 @@ hwloc_distances_get_by_name(hwloc_topology_t topology, const char *name,
 /** \brief Get a description of what a distances structure contains.
  *
  * For instance "NUMALatency" for hardware-provided NUMA distances (ACPI SLIT),
- * or NULL if unknown.
+ * or \c NULL if unknown.
+ *
+ * \return the constant string with the name of the distance structure.
+ *
+ * \note The returned name should not be freed by the caller,
+ * it belongs to the hwloc library.
  */
 HWLOC_DECLSPEC const char *
 hwloc_distances_get_name(hwloc_topology_t topology, struct hwloc_distances_s *distances);
@@ -215,17 +227,24 @@ enum hwloc_distances_transform_e {
   HWLOC_DISTANCES_TRANSFORM_LINKS = 1,
 
   /** \brief Merge switches with multiple ports into a single object.
-   * This currently only applies to NVSwitches where GPUs seem connected to different
-   * separate switch ports in the NVLinkBandwidth matrix. This transformation will
-   * replace all of them with the same port connected to all GPUs.
-   * Other ports are removed by applying ::HWLOC_DISTANCES_TRANSFORM_REMOVE_NULL internally.
+   *
+   * This currently only applies to NVSwitches where GPUs seem connected
+   * to different switch ports. Switch ports must be objects with subtype
+   * "NVSwitch" as in the NVLinkBandwidth matrix.
+   *
+   * This transformation will replace all ports with only the first one,
+   * now connected to all GPUs. Other ports are removed by applying
+   * ::HWLOC_DISTANCES_TRANSFORM_REMOVE_NULL internally.
    * \hideinitializer
    */
   HWLOC_DISTANCES_TRANSFORM_MERGE_SWITCH_PORTS = 2,
 
   /** \brief Apply a transitive closure to the matrix to connect objects across switches.
-   * This currently only applies to GPUs and NVSwitches in the NVLinkBandwidth matrix.
-   * All pairs of GPUs will be reported as directly connected.
+   *
+   * All pairs of GPUs will be reported as directly connected instead GPUs being
+   * only connected to switches.
+   *
+   * Switch ports must be objects with subtype "NVSwitch" as in the NVLinkBandwidth matrix.
    * \hideinitializer
    */
   HWLOC_DISTANCES_TRANSFORM_TRANSITIVE_CLOSURE = 3
@@ -252,6 +271,8 @@ enum hwloc_distances_transform_e {
  *
  * \p flags must be \c 0 for now.
  *
+ * \return 0 on success, -1 on error for instance if flags are invalid.
+ *
  * \note Objects in distances array \p objs may be directly modified
  * in place without using hwloc_distances_transform().
  * One may use hwloc_get_obj_with_same_locality() to easily convert
@@ -272,6 +293,7 @@ HWLOC_DECLSPEC int hwloc_distances_transform(hwloc_topology_t topology, struct h
 
 /** \brief Find the index of an object in a distances structure.
  *
+ * \return the index of the object in the distances structure if any.
  * \return -1 if object \p obj is not involved in structure \p distances.
  */
 static __hwloc_inline int
@@ -289,6 +311,7 @@ hwloc_distances_obj_index(struct hwloc_distances_s *distances, hwloc_obj_t obj)
  * The distance from \p obj1 to \p obj2 is stored in the value pointed by
  * \p value1to2 and reciprocally.
  *
+ * \return 0 on success.
  * \return -1 if object \p obj1 or \p obj2 is not involved in structure \p distances.
  */
 static __hwloc_inline int
@@ -340,6 +363,8 @@ typedef void * hwloc_distances_add_handle_t;
  * Otherwise, it will be copied internally and may later be freed by the caller.
  *
  * \p kind specifies the kind of distance as a OR'ed set of ::hwloc_distances_kind_e.
+ * Only one kind of meaning and one kind of provenance may be given if appropriate
+ * (e.g. ::HWLOC_DISTANCES_KIND_MEANS_BANDWIDTH and ::HWLOC_DISTANCES_KIND_FROM_USER).
  * Kind ::HWLOC_DISTANCES_KIND_HETEROGENEOUS_TYPES will be automatically set
  * according to objects having different types in hwloc_distances_add_values().
  *
@@ -374,8 +399,8 @@ hwloc_distances_add_create(hwloc_topology_t topology,
  *
  * \p flags must be \c 0 for now.
  *
- * \return \c 0 on success.
- * \return \c -1 on error.
+ * \return 0 on success.
+ * \return -1 on error.
  */
 HWLOC_DECLSPEC int hwloc_distances_add_values(hwloc_topology_t topology,
                                               hwloc_distances_add_handle_t handle,
@@ -386,7 +411,8 @@ HWLOC_DECLSPEC int hwloc_distances_add_values(hwloc_topology_t topology,
 /** \brief Flags for adding a new distances to a topology. */
 enum hwloc_distances_add_flag_e {
   /** \brief Try to group objects based on the newly provided distance information.
-   * This is ignored for distances between objects of different types.
+   * Grouping is only performed when the distances structure contains latencies,
+   * and when all objects are of the same type.
    * \hideinitializer
    */
   HWLOC_DISTANCES_ADD_FLAG_GROUP = (1UL<<0),
@@ -411,8 +437,8 @@ enum hwloc_distances_add_flag_e {
  *
  * On error, the temporary distances structure and its content are destroyed.
  *
- * \return \c 0 on success.
- * \return \c -1 on error.
+ * \return 0 on success.
+ * \return -1 on error.
  */
 HWLOC_DECLSPEC int hwloc_distances_add_commit(hwloc_topology_t topology,
                                               hwloc_distances_add_handle_t handle,
@@ -433,18 +459,24 @@ HWLOC_DECLSPEC int hwloc_distances_add_commit(hwloc_topology_t topology,
  *
  * If these distances were used to group objects, these additional
  * Group objects are not removed from the topology.
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int hwloc_distances_remove(hwloc_topology_t topology);
 
 /** \brief Remove distance matrices for objects at a specific depth in the topology.
  *
  * Identical to hwloc_distances_remove() but only applies to one level of the topology.
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int hwloc_distances_remove_by_depth(hwloc_topology_t topology, int depth);
 
 /** \brief Remove distance matrices for objects of a specific type in the topology.
  *
  * Identical to hwloc_distances_remove() but only applies to one level of the topology.
+ *
+ * \return 0 on success, -1 on error.
  */
 static __hwloc_inline int
 hwloc_distances_remove_by_type(hwloc_topology_t topology, hwloc_obj_type_t type)
@@ -458,6 +490,8 @@ hwloc_distances_remove_by_type(hwloc_topology_t topology, hwloc_obj_type_t type)
 /** \brief Release and remove the given distance matrice from the topology.
  *
  * This function includes a call to hwloc_distances_release().
+ *
+ * \return 0 on success, -1 on error.
  */
 HWLOC_DECLSPEC int hwloc_distances_release_remove(hwloc_topology_t topology, struct hwloc_distances_s *distances);
 

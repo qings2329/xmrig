@@ -11,6 +11,6 @@
 :: Mining solo is the best way to help Monero network be more decentralized!
 :: But you will only get a payout when you find a block which can take more than a year for a single low-end PC.
 
-cd %~dp0
-xmrig.exe -o node.xmr.to:18081 -a rx/0 -u 423FUAUjPUnSmSekaBUxSmT2t7nuYDS31E5ccwUh5HFiUEsyHKDf5moAJe3CdbFBNQfMwcdeJQmF95K9PZ2QqUQhCmh3amq --daemon
+cd /d "%~dp0"
+xmrig.exe -o YOUR_NODE_IP:18081 -a rx/0 -u 423FUAUjPUnSmSekaBUxSmT2t7nuYDS31E5ccwUh5HFiUEsyHKDf5moAJe3CdbFBNQfMwcdeJQmF95K9PZ2QqUQhCmh3amq --daemon
 pause
